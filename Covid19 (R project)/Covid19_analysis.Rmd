@@ -1,0 +1,244 @@
+`---
+title: "Covid19 - Data analysis"
+output: html_notebook
+---
+
+This is an [R Markdown](http://rmarkdown.rstudio.com) Notebook. When you execute code within the notebook, the results appear beneath the code. 
+
+Try executing this chunk by clicking the *Run* button within the chunk or by placing your cursor inside it and pressing *Ctrl+Shift+Enter*. 
+
+Data source: https://github.com/CSSEGISandData/COVID-19/tree/master/csse_covid_19_data/csse_covid_19_time_series
+
+```{r}
+library(dplyr)
+library(readr)
+library(janitor)
+library(ggplot2)
+library(tidyr)
+library(grid)
+```
+
+
+```{r}
+#CONFIRM CASES FILE
+confirmed <- read_csv('time_series_covid19_confirmed_global.csv')
+head(confirmed)
+```
+
+
+
+```{r}
+#Total case by 9th Nov
+total_case <- confirmed %>% 
+  summarise(sum(`11/9/20`))
+  
+total_case
+```
+```{r}
+#Group by countries
+group_countries <- confirmed%>%
+    group_by(`Country/Region`) %>%
+    summarise_at(vars(-`Province/State`, -Lat, -Long), sum)
+group_countries
+```
+```{r}
+#Total cases of countries from the north
+north_equator <- confirmed %>%
+    filter(Lat > 0) %>%
+    summarise(sum(`11/9/20`))
+north_equator
+
+north_confirmed_percent <- north_equator*100/total_case
+north_confirmed_percent
+
+```
+
+```{r}
+#Total cases of countries from the south
+south_equator <- confirmed %>%
+    filter(Lat < 0) %>%
+    summarise(sum(`11/9/20`))
+south_equator
+
+south_confirmed_percent <- south_equator*100/total_case
+south_confirmed_percent
+```
+
+```{r}
+#Chart to compare north and south
+regions <- c('Northern countries', 'Southern countries')
+total_cases <- c(40720033, 10192684)
+percentage<- c(79.97893, 20.01963)
+
+north_south_data <- data.frame(regions, total_cases, percentage)
+north_south_data 
+
+
+```
+```{r}
+#find the countries with maximum number of confirmed cases
+just_number <- group_countries %>%
+    select(-`Country/Region`) 
+max_case <- max(just_number, na.rm=TRUE)
+max_case
+
+which(group_countries == max_case, arr.ind=T)
+group_countries[182, 294]
+
+#CONCLUSION: The country that experienced highest no. of cases is US. 10110552 cases on 9th Nov 2020
+```
+```{r}
+#Top six countries 
+top_six <- tail(group_countries[order(group_countries$`11/9/20`),]) 
+
+top_six_table <- top_six %>%
+    select(`Country/Region`,`11/9/20`) 
+top_six_table
+
+
+
+top_six_transposed <- top_six %>%
+  t() %>%
+  as.data.frame() %>%
+  row_to_names(row_number = 1)
+
+
+top_six_transposed <- top_six_transposed %>%
+  apply(MARGIN=2, as.numeric) %>%
+  as.data.frame()
+
+top_six_transposed <- top_six_transposed %>%
+  mutate(date = c(1: nrow(top_six_transposed)))
+
+top_six_transposed
+df <- gather(top_six_transposed, key = Country, value = cases, c("Spain", "Russia", "France", "Brazil", "India", "US"))
+
+top_six_trend <- ggplot(df, aes(x=date, y = cases, group = Country, colour = Country)) + geom_line()+ labs(title='Confirmed cases in top six countries',x='From 22nd Jan to 9th Nov 2020', y='Number of cases')+ 
+  scale_y_continuous(limit = c(0, 11000000)) +
+  theme(axis.text.x = element_blank())
+
+top_six_trend
+ggsave('top_six_trend.png')
+```
+```{r}
+#RECOVERED & DEATHS
+recovered <- read_csv('time_series_covid19_recovered_global.csv')
+head(recovered)
+deaths <- read_csv('time_series_covid19_deaths_global.csv')
+head(deaths)
+      
+```
+```{r}
+#Dropping the 2 last cols (11/10/20 & 11/11/20) to keep the dates consistent
+recovered <- recovered %>% select (-`11/10/20`, -`11/11/20`)
+deaths <- deaths %>% select(-`11/10/20`, -`11/11/20`)
+
+head(deaths)
+
+
+```
+
+
+```{r}
+#Total cases recovered by 9th Nov
+sum_recovered <- recovered %>%
+    summarise(sum(`11/9/20`))
+sum_recovered
+sum_recovered_percent <- sum_recovered*100/total_case
+sum_recovered_percent
+
+#Northern countries (Lat >0)
+north_recovered <- recovered %>%
+    filter(Lat>0) %>%
+    summarise(sum(`11/9/20`))
+north_recovered_percent <- north_recovered*100/north_equator
+north_recovered_percent
+
+#Southern countries (Lat<0)
+south_recovered <- recovered %>%
+    filter(Lat<0) %>%
+    summarise(sum(`11/9/20`))
+south_recovered_percent <- south_recovered*100/ south_equator
+south_recovered_percent
+
+#Total deaths by 9th Nov
+sum_deaths <- deaths %>%
+    summarise(sum(`11/9/20`))
+sum_deaths
+
+north_deaths <- deaths %>%
+    filter(Lat>0) %>%
+    summarise(sum(`11/9/20`))
+north_deaths
+north_deaths_percent <- north_deaths*100/north_equator
+north_deaths_percent
+
+south_deaths <- deaths %>%
+    filter(Lat<0) %>%
+    summarise(sum(`11/9/20`))
+south_deaths
+south_deaths_percent <- south_deaths*100/ south_equator
+south_deaths_percent
+
+
+#CONCLUSION! South recovered faster than North
+```
+
+
+```{r}
+
+south_treatment <- south_equator - south_deaths - south_recovered
+north_treatment <- north_equator - north_deaths - north_recovered
+
+south_treatment
+north_treatment
+
+#comparison North and South table
+regions <- c('Northern countries', 'Southern countries')
+confirmed <- c(40720033, 10192684)
+deaths <- c(955048, 308243)
+on_treatment <- c(15634207, 726474)
+recovered <- c(24130778, 9157967)
+
+north_south_summary <- data.frame(regions, confirmed, deaths, on_treatment, recovered)
+north_south_summary
+```
+
+
+```{r}
+#Chart for 2 areas:
+status <- c('Recovered', 'Dead', 'On treatment')
+northern_countries <- c(24130778, 955048, 15634207)
+southern_countries <- c(9157967, 308243, 726474)
+north_and_south <- data.frame(status, northern_countries, southern_countries)
+
+north_and_south
+
+df <- pivot_longer(north_and_south, cols=-1)
+df
+
+percent_chart <- ggplot(df, aes(x=name, y=value, fill=status)) + geom_bar(position="fill", stat="identity") + scale_y_continuous(labels = scales::percent) + scale_fill_brewer() + theme_light() + theme(axis.title=element_blank())
+percent_chart
+ggsave('north_south_percent_chart.png')
+
+north_and_south_chart <- ggplot(df, aes(x=name, y=value, fill=status)) + geom_bar(position="stack", stat="identity") + ylab('Number of cases') + scale_fill_brewer() + theme_classic() +  theme(axis.title.x=element_blank())
+north_and_south_chart 
+ggsave('north_and_south_chart.png')
+
+```
+
+
+
+```{r}
+
+
+
+
+```
+ 
+Add a new chunk by clicking the *Insert Chunk* button on the toolbar or by pressing *Ctrl+Alt+I*.
+
+When you save the notebook, an HTML file   containing the code and output will be saved alongside it (click the *Preview* button or press *Ctrl+Shift+K* to preview the HTML file).
+t
+The preview shows you a rendered HTML copy of the contents of the editor. Consequently, unlike *Knit*, *Preview* does not run any R code chunks. Instead, the output of the chunk when it was last run in the editor is displayed.
+`
