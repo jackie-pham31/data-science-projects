@@ -230,6 +230,7 @@ ggsave('north_and_south_chart.png')
 
 
 ```{r}
+#Further look at US data
 us_confirmed_case <- group_countries %>% 
     filter(`Country/Region` == 'US')
 
