@@ -91,31 +91,50 @@ group_countries[182, 294]
 #Top six countries 
 top_six <- tail(group_countries[order(group_countries$`11/9/20`),]) 
 
-top_six_table <- top_six %>%
-    select(`Country/Region`,`11/9/20`) 
-top_six_table
+#top_six
 
+#top_six_table <- top_six %>%
+#    select(`Country/Region`,`11/9/20`) 
+#top_six_table
 
 
 top_six_transposed <- top_six %>%
   t() %>%
   as.data.frame() %>%
-  row_to_names(row_number = 1)
+  row_to_names(row_number = 1) 
+
+
+top_six_transposed <- cbind(Month = rownames(top_six_transposed), top_six_transposed)
+rownames(top_six_transposed) <- 1:nrow(top_six_transposed)
 
 
 top_six_transposed <- top_six_transposed %>%
-  apply(MARGIN=2, as.numeric) %>%
-  as.data.frame()
+  separate(Month, sep="/", into = c("Month", "day", "year")) %>%
+  select(-year, - day)
+
+
+top_six_transposed <- top_six_transposed %>% 
+  mutate_at(c(1:7), as.numeric, sum)
 
 top_six_transposed <- top_six_transposed %>%
-  mutate(date = c(1: nrow(top_six_transposed)))
+  group_by(Month) %>%
+  summarise_each (funs(sum))
+
+
+top_six_transposed <- top_six_transposed[-c(11), ]
+
+top_six_transposed$Spain <- top_six_transposed$Spain/1000000 
+top_six_transposed$Russia <- top_six_transposed$Russia/1000000 
+top_six_transposed$France <- top_six_transposed$France/1000000 
+top_six_transposed$Brazil <- top_six_transposed$Brazil/1000000 
+top_six_transposed$India <- top_six_transposed$India/1000000 
+top_six_transposed$US <- top_six_transposed$US/1000000 
 
 top_six_transposed
-df <- gather(top_six_transposed, key = Country, value = cases, c("Spain", "Russia", "France", "Brazil", "India", "US"))
 
-top_six_trend <- ggplot(df, aes(x=date, y = cases, group = Country, colour = Country)) + geom_line()+ labs(title='Confirmed cases in top six countries',x='From 22nd Jan to 9th Nov 2020', y='Number of cases')+ 
-  scale_y_continuous(limit = c(0, 11000000)) +
-  theme(axis.text.x = element_blank())
+df <- gather(top_six_transposed, key = 'Country', value = 'value', c("Spain", "Russia", "France", "Brazil", "India", "US"))
+
+top_six_trend <- ggplot(df, aes(x=Month, y = value)) + geom_line(aes(color=Country, linetype=Country)) + labs(title='Confirmed cases in top six countries', y='Millions of cases')+ scale_x_discrete(limit = c('Jan', 'Feb', 'March', 'April', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct')) + scale_x_discrete(limit = c('Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct')) + theme_light() + theme(text = element_text(size=10), axis.title.x=element_blank()) 
 
 top_six_trend
 ggsave('top_six_trend.png')
@@ -230,7 +249,6 @@ ggsave('north_and_south_chart.png')
 
 
 ```{r}
-#Further look at US data
 us_confirmed_case <- group_countries %>% 
     filter(`Country/Region` == 'US')
 
@@ -253,7 +271,7 @@ us_confirmed_case_by_month
 #Since Nov data is not fully updated, data of Nov will be removed from the bar plot!
 us_confirmed_case_by_month <- us_confirmed_case_by_month[-c(11), ]
 
-us_confirmed_chart <- ggplot(us_confirmed_case_by_month, aes(x=month, y=million_cases)) + geom_bar(stat='identity', fill='steelblue') + labs(title='US cases from 22nd Jan to 9th Oct 2020', subtitle = 'Nov data is not fully updated') + ylab(label='Million of cases') + scale_x_discrete(limit = c('Jan', 'Feb', 'March', 'April', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct')) + theme_minimal() + theme(axis.title.x=element_blank()) 
+us_confirmed_chart <- ggplot(us_confirmed_case_by_month, aes(x=month, y=million_cases)) + geom_bar(stat='identity', fill='steelblue') + labs(title='US cases from 22nd Jan to 9th Oct 2020', subtitle = 'Nov data is not fully updated') + ylab(label='Million of cases') + scale_x_discrete(limit = c('Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct')) + theme_minimal() + theme(axis.title.x=element_blank()) 
 
 us_confirmed_chart
 ggsave('us_confirmed_cases.png')
