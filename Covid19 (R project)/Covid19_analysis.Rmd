@@ -39,7 +39,49 @@ total_case
 group_countries <- confirmed%>%
     group_by(`Country/Region`) %>%
     summarise_at(vars(-`Province/State`, -Lat, -Long), sum)
+
+#To transpose the table
+group_countries <- group_countries %>%
+  t() %>%
+  as.data.frame() %>%
+  row_to_names(row_number = 1) 
+
+#To convert index col to normal col
+group_countries <- cbind(Month = rownames(group_countries), group_countries)
+rownames(group_countries) <- 1:nrow(group_countries)
+
+#To separate month
+group_countries <- group_countries %>%
+  separate(Month, sep="/", into = c("Month", "day", "year")) %>%
+  select(-year, - day)
+
+#To convert all cols to numeric
+group_countries[] <- sapply(group_countries, as.numeric)
+
+#To sum all cols
+group_countries <- group_countries %>%
+  group_by(Month) %>%
+  summarise_all(sum) 
+
+#To sum all cases by months
+group_countries$Case_sum <- rowSums(group_countries[2:191])
+
+group_countries$Millions_of_cases <- group_countries$Case_sum/1000000
+
+group_countries <- group_countries %>%
+  select(Month, Millions_of_cases )
+
+#To remove Nov data
+group_countries <- group_countries[-c(11), ]
 group_countries
+
+
+total_cases_chart <- ggplot(group_countries, aes(x=Month, y=Millions_of_cases)) + geom_bar(stat='identity', fill='steelblue') + labs(title='Total cases from Jan to Oct 2020') + ylab(label='Million of cases') + scale_x_discrete(limit = c('Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct')) + theme(axis.title.x=element_blank()) 
+
+
+total_cases_chart
+
+ggsave('total_cases_chart.jpeg')
 ```
 ```{r}
 #Total cases of countries from the north
@@ -103,19 +145,21 @@ top_six_transposed <- top_six %>%
   as.data.frame() %>%
   row_to_names(row_number = 1) 
 
-
+#To convert index col to normal col
 top_six_transposed <- cbind(Month = rownames(top_six_transposed), top_six_transposed)
 rownames(top_six_transposed) <- 1:nrow(top_six_transposed)
 
 
+#To separate month
 top_six_transposed <- top_six_transposed %>%
   separate(Month, sep="/", into = c("Month", "day", "year")) %>%
   select(-year, - day)
 
-
+#To convert all cols to numeric
 top_six_transposed <- top_six_transposed %>% 
   mutate_at(c(1:7), as.numeric, sum)
 
+#To sum all cols
 top_six_transposed <- top_six_transposed %>%
   group_by(Month) %>%
   summarise_each (funs(sum))
