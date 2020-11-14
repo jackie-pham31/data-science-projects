@@ -20,7 +20,7 @@ library(grid)
 
 
 ```{r}
-#CONFIRM CASES FILE
+#CONFIRMED CASES 
 confirmed <- read_csv('time_series_covid19_confirmed_global.csv')
 head(confirmed)
 ```
@@ -28,7 +28,7 @@ head(confirmed)
 
 
 ```{r}
-#Total case by 9th Nov
+#Total cases by 9th Nov
 total_case <- confirmed %>% 
   summarise(sum(`11/9/20`))
   
@@ -39,44 +39,49 @@ total_case
 group_countries <- confirmed%>%
     group_by(`Country/Region`) %>%
     summarise_at(vars(-`Province/State`, -Lat, -Long), sum)
+group_countries
+
 
 #To transpose the table
-group_countries <- group_countries %>%
+group_countries_transposed <- group_countries %>%
   t() %>%
   as.data.frame() %>%
   row_to_names(row_number = 1) 
 
 #To convert index col to normal col
-group_countries <- cbind(Month = rownames(group_countries), group_countries)
-rownames(group_countries) <- 1:nrow(group_countries)
+group_countries_transposed <- cbind(Month = rownames(group_countries_transposed), group_countries_transposed)
+rownames(group_countries_transposed) <- 1:nrow(group_countries_transposed)
 
 #To separate month
-group_countries <- group_countries %>%
+group_countries_transposed <- group_countries_transposed %>%
   separate(Month, sep="/", into = c("Month", "day", "year")) %>%
   select(-year, - day)
 
 #To convert all cols to numeric
-group_countries[] <- sapply(group_countries, as.numeric)
+group_countries_transposed[] <- sapply(group_countries_transposed, as.numeric)
 
 #To sum all cols
-group_countries <- group_countries %>%
+group_countries_transposed <- group_countries_transposed %>%
   group_by(Month) %>%
   summarise_all(sum) 
 
-#To sum all cases by months
-group_countries$Case_sum <- rowSums(group_countries[2:191])
-
-group_countries$Millions_of_cases <- group_countries$Case_sum/1000000
-
-group_countries <- group_countries %>%
-  select(Month, Millions_of_cases )
-
 #To remove Nov data
-group_countries <- group_countries[-c(11), ]
-group_countries
+group_countries_transposed <- group_countries_transposed[-c(11), ]
 
 
-total_cases_chart <- ggplot(group_countries, aes(x=Month, y=Millions_of_cases)) + geom_bar(stat='identity', fill='steelblue') + labs(title='Total cases from Jan to Oct 2020') + ylab(label='Million of cases') + scale_x_discrete(limit = c('Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct')) + theme(axis.title.x=element_blank()) 
+#To sum all cases by months
+group_countries_transposed$Case_sum <- rowSums(group_countries_transposed[2:191])
+
+#Convert to million
+group_countries_transposed$Millions_of_cases <- group_countries_transposed$Case_sum/1000000
+
+
+group_countries_transposed  <- group_countries_transposed %>%
+  select(Month, Millions_of_cases)
+
+group_countries_transposed
+
+total_cases_chart <- ggplot(group_countries_transposed, aes(x=Month, y=Millions_of_cases)) + geom_bar(stat='identity', fill='steelblue') + labs(title='Total cases from Jan to Oct 2020') + ylab(label='Millions of cases') + scale_x_discrete(limit = c('Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct')) + theme(text = element_text(size=10), axis.title.x=element_blank()) 
 
 
 total_cases_chart
@@ -315,7 +320,7 @@ us_confirmed_case_by_month
 #Since Nov data is not fully updated, data of Nov will be removed from the bar plot!
 us_confirmed_case_by_month <- us_confirmed_case_by_month[-c(11), ]
 
-us_confirmed_chart <- ggplot(us_confirmed_case_by_month, aes(x=month, y=million_cases)) + geom_bar(stat='identity', fill='steelblue') + labs(title='US cases from 22nd Jan to 9th Oct 2020', subtitle = 'Nov data is not fully updated') + ylab(label='Million of cases') + scale_x_discrete(limit = c('Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct')) + theme_minimal() + theme(axis.title.x=element_blank()) 
+us_confirmed_chart <- ggplot(us_confirmed_case_by_month, aes(x=month, y=million_cases)) + geom_bar(stat='identity', fill='steelblue') + labs(title='US cases from Jan to Oct 2020') + ylab(label='Millions of cases') + scale_x_discrete(limit = c('Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct')) + theme_minimal() + theme(text = element_text(size=10), axis.title.x=element_blank()) 
 
 us_confirmed_chart
 ggsave('us_confirmed_cases.png')
