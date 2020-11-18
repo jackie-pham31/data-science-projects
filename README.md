@@ -7,4 +7,5 @@ It would be great if you could read them through and give me some advice/ feedba
 Please report issues [here](https://github.com/jackie-pham31/data-science-projects/issues). 
 
 Many thanks,
+
 Jackie
