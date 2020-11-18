@@ -88,6 +88,9 @@ total_cases_chart
 
 ggsave('total_cases_chart.jpeg')
 ```
+
+
+
 ```{r}
 #Total cases of countries from the north
 north_equator <- confirmed %>%
@@ -326,7 +329,20 @@ us_confirmed_chart
 ggsave('us_confirmed_cases.png')
 
 ```
- 
+```{r}
+
+#Find the rate of change
+
+may_oct <-group_countries %>%
+  mutate(may_oct_rate = round((group_countries$`10/31/20` - group_countries$`5/1/20`)*100/group_countries$`5/1/20`, digits=2)) %>%
+  select(`Country/Region`, `may_oct_rate`) %>%
+  filter(may_oct_rate >= 1000 & may_oct_rate!= Inf)
+  
+
+may_oct <- may_oct[order(may_oct$`may_oct_rate`, decreasing = TRUE),]
+may_oct
+```
+
 Add a new chunk by clicking the *Insert Chunk* button on the toolbar or by pressing *Ctrl+Alt+I*.
 
 When you save the notebook, an HTML file   containing the code and output will be saved alongside it (click the *Preview* button or press *Ctrl+Shift+K* to preview the HTML file).
