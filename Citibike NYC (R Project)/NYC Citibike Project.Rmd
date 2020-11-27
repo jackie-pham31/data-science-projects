@@ -23,7 +23,6 @@ tail(all_data)
 
 ```
 
-Since we have information about the starting and ending location for each trip, let's quickly make a heat map of the starting locations. 
 
 ```{r}
 
@@ -168,7 +167,7 @@ df$avg_speed <- round(df$avg_speed, 2)
 df$age_range <- factor(df$age_range, levels = df$age_range)
 
 ```
-### Visualization!
+### Visualisation!
 ```{r}
 #Create chart
 avg_speed_chart <- ggplot(df, aes(x=age_range, y=avg_speed)) + geom_bar(stat='identity', fill='lightblue') + scale_y_continuous(breaks=c(2.5, 5.0, 7.5, 10.0)) + geom_text(aes(label=avg_speed), size=3, vjust=-0.25) + theme_classic() + ylab('Average speed (km/h)') + theme(axis.title.x=element_blank())
@@ -236,16 +235,3 @@ checking <- all_data %>%
 
 checking
 ```
-
-
-```
-
-
-
-### Further Work
-
-Great work! You've made several graphs that show a real difference in the way different groups of Citi Bike users bike. This could be a valuable asset in helping Citi Bike understand how to make bike riding safer in New York. However, there is so much more you can do with this data!
-
-To begin, there are some major flaws in the way we calculated the speed. Specifically, we made some _huge_ assumptions when calculating the distance of each bike ride. Instead of calculating the straight line distance using the geosphere library, we could take advantage of a service like Google Map's API to get a more accurate measurement of distance. If you're interested in look more into this problem, investigate getting a [Google Maps API key](https://developers.google.com/maps/documentation/geocoding/get-api-key) and using a library like [gmapsdistance](https://cran.r-project.org/web/packages/gmapsdistance/gmapsdistance.pdf).
-
-Another great way to extend this project is to investigate other data that Citi Bike makes available. We used data found in the _Citi Bike Trip Histories_ section on the [System Data](https://www.citibikenyc.com/system-data) page. On the System Data page, you can find different dataset, including information about membership data and real time station data. You could use this real time data to track how the flow of bikes changes over the course of the day. You could investigate how the weather impacts membership. We would love to see any graphs or insights you produce!
