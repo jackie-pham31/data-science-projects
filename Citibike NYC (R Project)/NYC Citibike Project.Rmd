@@ -23,6 +23,7 @@ tail(all_data)
 
 ```
 
+Since we have information about the starting and ending location for each trip, let's quickly make a heat map of the starting locations. 
 
 ```{r}
 
@@ -114,7 +115,19 @@ scatter_plot <- ggplot(zero_removed, aes(mean_speed, age, color=gender)) + geom_
 
 relation <- ggplot(zero_removed, aes(age, mean_speed, color=gender)) + geom_point() + geom_smooth() + xlab('Age') + ylab ('Average speed km/h') + scale_color_discrete(name='Gender', labels=c('Male', 'Female'))
 relation
-ggsave('Speed~age+gender.jpeg')
+#ggsave('Speed~age+gender.jpeg')
+
+```
+```{r}
+
+data_sample <- sample(c(TRUE, FALSE), nrow(group_by_age), replace=T, prob=c(0.6,0.4))
+
+train <- group_by_age[data_sample, ]
+test <- group_by_age[!data_sample, ]
+
+model <- lm(mean_speed~gender+age, data=train)
+summary(model)
+summary(model)$r.squared
 ```
 
 ```
@@ -167,7 +180,7 @@ df$avg_speed <- round(df$avg_speed, 2)
 df$age_range <- factor(df$age_range, levels = df$age_range)
 
 ```
-### Visualisation!
+### Visualization!
 ```{r}
 #Create chart
 avg_speed_chart <- ggplot(df, aes(x=age_range, y=avg_speed)) + geom_bar(stat='identity', fill='lightblue') + scale_y_continuous(breaks=c(2.5, 5.0, 7.5, 10.0)) + geom_text(aes(label=avg_speed), size=3, vjust=-0.25) + theme_classic() + ylab('Average speed (km/h)') + theme(axis.title.x=element_blank())
@@ -209,9 +222,10 @@ trip_duration_facet
 ggsave('Trip duration by age and gender.jpeg')
 
 
+
 ```
 ```{r}
-system_hours <- fromJSON(file='https://gbfs.citibikenyc.com/gbfs/en/system_hours.json')
+system_hours <- fromJSON(txt='https://gbfs.citibikenyc.com/gbfs/en/system_hours.json')
 
 class(system_hours)
 ```
@@ -235,3 +249,12 @@ checking <- all_data %>%
 
 checking
 ```
+```{r}
+
+```
+
+
+```
+
+
+
