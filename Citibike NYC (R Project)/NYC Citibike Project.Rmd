@@ -1,0 +1,251 @@
+---
+title: "October_Citibike"
+output: html_notebook
+---
+
+### Citi Bike Data
+
+
+
+```{r}
+library(ggplot2)
+library(dplyr)
+library(jsonlite)
+library(geosphere)
+```
+
+
+```{r}
+# Load the dataset
+all_data <- read.csv("202010-citibike-tripdata.csv")
+all_data
+tail(all_data)
+
+```
+
+Since we have information about the starting and ending location for each trip, let's quickly make a heat map of the starting locations. 
+
+```{r}
+
+# Create a heatmap of starting locations
+heatmap <- ggplot(all_data, aes(x=start.station.longitude, y=start.station.latitude)) + geom_bin2d(binwidth=c(0.01, 0.01)) + xlab('Location longtitude') + ylab('Location latitude') 
+
+ggsave('Location heatmap Oct.jpeg')
+```
+
+### Calculate the average speed of each trip.
+```{r}
+
+#Create 2 matrix for distHaversine method 
+mat_start <- cbind(all_data$start.station.longitude, all_data$start.station.latitude)
+mat_end <- cbind(all_data$end.station.longitude, all_data$end.station.latitude)
+
+#calculate and add 'distance' col at the end
+all_data <- all_data %>%
+  mutate(distance = distHaversine(mat_start, mat_end, r=6378137))
+
+
+#average speed of each trip (m/s)
+all_data$speed <- round(((all_data$distance / all_data$tripduration)*3.6), 2)
+
+#all_data
+
+#max and min distance
+max_distance <- all_data %>% filter(distance == max(all_data$distance, na.rm=TRUE))
+#max_distance
+
+min_distance <- all_data %>% 
+  filter(distance>0) 
+min_distance <- min_distance %>% 
+  filter(distance == min(min_distance$distance, na.rm=TRUE))
+min_distance
+
+
+#Max distance between 2 stations is 21.21627km which links 14St &7Ave St and W181 St & Riverside Dr, min distance is 0.03677km links Pershing Square North and Pershing Square South
+```
+
+### Calculate age of all members
+```{r}
+all_data <- all_data%>%
+  mutate(age = 2020 - birth.year)%>%
+  mutate(gender = as.factor(gender))
+colnames(all_data)  
+head(all_data)
+```
+```{r}
+group_by_age <- all_data %>%
+  group_by(age, gender) %>%
+  summarise(mean_speed=mean(speed))
+
+group_by_age
+```
+```{r}
+#Checking outlier
+female <- group_by_age %>%
+  filter(gender==2)
+male <- group_by_age %>%
+  filter(gender==1)
+
+female_speed_outlier <- ggplot(female, aes(mean_speed, mean_speed)) + geom_boxplot()
+
+age_outlier <- ggplot(group_by_age, aes(age, age, group=1)) + geom_boxplot()
+
+#Average speed by gender
+avg_speed_female <- mean(female$mean_speed)
+avg_speed_female
+
+avg_speed_male <- mean(male$mean_speed)
+avg_speed_male
+
+avg_speed_male/avg_speed_female
+
+#Average speed plot
+group_by_age <- group_by_age %>%
+  filter(age>16 & age<75) %>%
+  mutate(gender=as.factor(gender))
+group_by_age
+plot <- ggplot(data=group_by_age, aes(age, mean_speed, group=gender, color=gender)) + geom_line() + ylab('Average speed (km/h)') + xlab('Age') + scale_x_continuous(limits=c(15, 75)) + scale_color_discrete(name='Gender', labels=c('Not stated', 'Male', 'Female')) + theme_light()
+plot
+
+#ggsave('Average speed by age and gender Oct.jpeg')
+
+zero_removed <- group_by_age %>% filter(gender == 1 | gender == 2)
+scatter_plot <- ggplot(zero_removed, aes(mean_speed, age, color=gender)) + geom_point() + ylab('Age') + xlab ('Average speed km/h') + scale_color_discrete(name='Gender', labels=c('Male', 'Female'))
+#ggsave('Male and female avg speed scatter plot.jpeg')
+
+relation <- ggplot(zero_removed, aes(age, mean_speed, color=gender)) + geom_point() + geom_smooth() + xlab('Age') + ylab ('Average speed km/h') + scale_color_discrete(name='Gender', labels=c('Male', 'Female'))
+relation
+ggsave('Speed~age+gender.jpeg')
+```
+
+```
+
+```
+
+
+
+```{r}
+#To get mean speed of each group of age
+
+all_data <- all_data %>% filter(age>16 & age<75)
+under_twenties <- all_data %>%
+  filter(age<=20)
+under_twenties <- mean(under_twenties$speed)
+under_twenties
+
+twenties_thirties <- all_data %>%
+  filter(age>20 & age <=30)
+twenties_thirties <- mean(twenties_thirties$speed)
+twenties_thirties
+
+thirties_fourties <- all_data %>%
+  filter(age>30 & age <=40)
+thirties_fourties  <- mean(thirties_fourties$speed)
+thirties_fourties 
+
+fourties_fifty <- all_data %>%
+  filter(age>40 & age <=50)
+fourties_fifty  <- mean(fourties_fifty$speed)
+fourties_fifty 
+
+fifty_sixties <- all_data %>%
+  filter(age>50 & age <=60)
+fifty_sixties  <- mean(fifty_sixties$speed)
+fifty_sixties 
+
+above_sixties <- all_data %>%
+  filter(age>60)
+above_sixties <- mean(above_sixties$speed)
+above_sixties
+
+
+df <- data.frame(age_range = c('Under 20s','20s-30s','30s-40s','40s-50s','50s-60s','Above 60s'), avg_speed = c(under_twenties,twenties_thirties,thirties_fourties,fourties_fifty,fifty_sixties,above_sixties)) 
+
+#Round up avg_speed
+df$avg_speed <- round(df$avg_speed, 2)
+
+#Lock age_range in its original order
+df$age_range <- factor(df$age_range, levels = df$age_range)
+
+```
+### Visualization!
+```{r}
+#Create chart
+avg_speed_chart <- ggplot(df, aes(x=age_range, y=avg_speed)) + geom_bar(stat='identity', fill='lightblue') + scale_y_continuous(breaks=c(2.5, 5.0, 7.5, 10.0)) + geom_text(aes(label=avg_speed), size=3, vjust=-0.25) + theme_classic() + ylab('Average speed (km/h)') + theme(axis.title.x=element_blank())
+
+avg_speed_chart
+
+ggsave('Average speed by age group Oct.jpeg')
+```
+
+
+```{r}
+#Distribution of users' age and gender
+male_and_female <- all_data%>% 
+  group_by(age, gender) %>%
+  filter(gender == 1| gender == 2) %>%
+  tally()
+
+male_and_female
+
+male_and_female_plot <- ggplot(male_and_female, aes(x=age, y=n, fill=gender)) + geom_col() + scale_fill_manual(name='Gender', values=c('dodgerblue', 'dodgerblue4'), labels=c('Male', 'Female')) + xlab('Age') + ylab('Number of bike users') + scale_x_discrete(limits=c(20, 30, 40, 50, 60, 70))
+male_and_female_plot
+
+ggsave('Male and female plot Oct.jpeg')
+```
+
+
+```{r}
+
+#trip duration by age
+trip_duration <- all_data %>%
+  group_by(age, gender) %>%
+  filter(gender==1 | gender==2) %>%
+  summarise(mean_tripduration=mean(tripduration)/60) 
+  
+trip_duration
+         
+trip_duration_facet <- ggplot(trip_duration, aes(x=age, y=mean_tripduration, color=gender)) + geom_line() +  facet_grid(cols = vars(gender)) + scale_color_discrete(name='Gender', labels=c('Male', 'Female')) + ylab('Average trip duration (mins)') + xlab('Age')
+trip_duration_facet
+ggsave('Trip duration by age and gender.jpeg')
+
+
+```
+```{r}
+system_hours <- fromJSON(file='https://gbfs.citibikenyc.com/gbfs/en/system_hours.json')
+
+class(system_hours)
+```
+```{r}
+user_type <- all_data %>%
+  group_by(usertype, age) %>%
+  mutate(usertype=as.factor(usertype)) %>%
+  tally()
+
+user_type
+require(scales)
+user_type_plot <- ggplot(user_type, aes(x=age, y=n, fill=usertype)) + geom_col() + ylab('Number of users') + xlab('Age') + scale_x_discrete(limits=c(20,30,40,50,60,70)) + scale_fill_manual(name='User type', values=c('tomato4', 'tomato')) + scale_y_discrete(limits=c(50000, 100000, 150000, 200000, 250000))
+user_type_plot
+
+ggsave('User types.jpeg')
+
+
+checking <- all_data %>%
+  filter(age==50, usertype=='Customer')%>%
+  filter(distance>=0)
+
+checking
+```
+
+
+```
+
+
+
+### Further Work
+
+Great work! You've made several graphs that show a real difference in the way different groups of Citi Bike users bike. This could be a valuable asset in helping Citi Bike understand how to make bike riding safer in New York. However, there is so much more you can do with this data!
+
+To begin, there are some major flaws in the way we calculated the speed. Specifically, we made some _huge_ assumptions when calculating the distance of each bike ride. Instead of calculating the straight line distance using the geosphere library, we could take advantage of a service like Google Map's API to get a more accurate measurement of distance. If you're interested in look more into this problem, investigate getting a [Google Maps API key](https://developers.google.com/maps/documentation/geocoding/get-api-key) and using a library like [gmapsdistance](https://cran.r-project.org/web/packages/gmapsdistance/gmapsdistance.pdf).
+
+Another great way to extend this project is to investigate other data that Citi Bike makes available. We used data found in the _Citi Bike Trip Histories_ section on the [System Data](https://www.citibikenyc.com/system-data) page. On the System Data page, you can find different dataset, including information about membership data and real time station data. You could use this real time data to track how the flow of bikes changes over the course of the day. You could investigate how the weather impacts membership. We would love to see any graphs or insights you produce!
