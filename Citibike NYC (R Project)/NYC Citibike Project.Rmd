@@ -3,7 +3,7 @@ title: "October_Citibike"
 output: html_notebook
 ---
 
-### Citi Bike Data
+### Citi Bike Data: Data is downloaded directly from https://s3.amazonaws.com/tripdata/index.html (202010-citibike-tripdata.csv.zip)
 
 
 
