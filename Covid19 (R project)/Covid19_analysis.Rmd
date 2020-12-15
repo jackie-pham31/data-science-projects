@@ -21,7 +21,7 @@ library(grid)
 
 ```{r}
 #CONFIRMED CASES 
-confirmed <- read_csv('time_series_covid19_confirmed_global.csv')
+confirmed <- read.csv('time_series_covid19_confirmed_global.csv')
 head(confirmed)
 ```
 
