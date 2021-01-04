@@ -16,12 +16,23 @@ library(janitor)
 library(ggplot2)
 library(tidyr)
 library(grid)
+library(base)
+
 ```
 
 
 ```{r}
 #CONFIRMED CASES 
-confirmed <- read.csv('time_series_covid19_confirmed_global.csv')
+confirmed <- read.csv('jan_time_series_covid19_confirmed_global.csv', check.names = FALSE)
+
+confirmed <- confirmed[1:(length(confirmed)-2)] 
+
+confirmed$Lat[is.na(confirmed$Lat)] <- 52.939900
+
+unidentified <- confirmed %>%
+  filter(is.na(confirmed$Lat) ==  TRUE)
+unidentified
+
 head(confirmed)
 ```
 
@@ -29,9 +40,8 @@ head(confirmed)
 
 ```{r}
 #Total cases by 9th Nov
-total_case <- confirmed %>% 
-  summarise(sum(`11/9/20`))
-  
+total_case <- confirmed %>%
+  summarise(sum(`12/31/20`))
 total_case
 ```
 ```{r}
@@ -40,7 +50,6 @@ group_countries <- confirmed%>%
     group_by(`Country/Region`) %>%
     summarise_at(vars(-`Province/State`, -Lat, -Long), sum)
 group_countries
-
 
 #To transpose the table
 group_countries_transposed <- group_countries %>%
@@ -65,40 +74,32 @@ group_countries_transposed <- group_countries_transposed %>%
   group_by(Month) %>%
   summarise_all(sum) 
 
-#To remove Nov data
-group_countries_transposed <- group_countries_transposed[-c(11), ]
-
-
 #To sum all cases by months
-group_countries_transposed$Case_sum <- rowSums(group_countries_transposed[2:191])
+group_countries_transposed$Case_sum <- rowSums(group_countries_transposed[1:192])
 
 #Convert to million
 group_countries_transposed$Millions_of_cases <- group_countries_transposed$Case_sum/1000000
 
-
 group_countries_transposed  <- group_countries_transposed %>%
   select(Month, Millions_of_cases)
-
-group_countries_transposed
-
-total_cases_chart <- ggplot(group_countries_transposed, aes(x=Month, y=Millions_of_cases)) + geom_bar(stat='identity', fill='steelblue') + labs(title='Total cases from Jan to Oct 2020') + ylab(label='Millions of cases') + scale_x_discrete(limit = c('Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct')) + theme(text = element_text(size=10), axis.title.x=element_blank()) 
-
-
-total_cases_chart
-
-ggsave('total_cases_chart.jpeg')
 ```
 
+
+```{r}
+total_cases_chart <- ggplot(group_countries_transposed, aes(x=Month, y=Millions_of_cases)) + geom_bar(stat='identity', fill='steelblue') + geom_line(color='red') + labs(title='Global COVID-19 cases in 2020') + ylab(label='Millions of cases') + scale_x_discrete(limit = c('Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec')) + theme_classic() + theme(text = element_text(size=10), axis.title.x=element_blank()) 
+total_cases_chart
+ggsave('updated_total_cases_chart.jpeg')
+```
 
 
 ```{r}
 #Total cases of countries from the north
 north_equator <- confirmed %>%
-    filter(Lat > 0) %>%
-    summarise(sum(`11/9/20`))
+    filter(Lat >= 0) %>%
+    summarise(sum(`12/31/20`))
 north_equator
 
-north_confirmed_percent <- north_equator*100/total_case
+north_confirmed_percent <- round(north_equator*100/total_case, digits=2)
 north_confirmed_percent
 
 ```
@@ -107,45 +108,47 @@ north_confirmed_percent
 #Total cases of countries from the south
 south_equator <- confirmed %>%
     filter(Lat < 0) %>%
-    summarise(sum(`11/9/20`))
-south_equator
+    summarise(sum(`12/31/20`))
+south_equator 
 
-south_confirmed_percent <- south_equator*100/total_case
+south_confirmed_percent <- round(south_equator*100/total_case, digits=2)
 south_confirmed_percent
+
 ```
 
 ```{r}
 #Chart to compare north and south
 regions <- c('Northern countries', 'Southern countries')
-total_cases <- c(40720033, 10192684)
-percentage<- c(79.97893, 20.01963)
-
-north_south_data <- data.frame(regions, total_cases, percentage)
+total_cases <-prettyNum(c(69847057, 13577389), big.mark=",")
+percentage<-c(83.72, 16.28)
+north_south_data <- data.frame(regions, total_cases, percentage) %>%
+  rename(Regions = regions, 'Total cases' = total_cases, Percentage = percentage)
 north_south_data 
 
-
+ggsave("updated_north_south_data.png")
 ```
 ```{r}
 #find the countries with maximum number of confirmed cases
 just_number <- group_countries %>%
     select(-`Country/Region`) 
 max_case <- max(just_number, na.rm=TRUE)
+prettyNum(max_case, big.mark = ",") 
+which(group_countries == max_case, arr.ind=T)
+max_case <- group_countries[183, ]
 max_case
 
-which(group_countries == max_case, arr.ind=T)
-group_countries[182, 294]
-
-#CONCLUSION: The country that experienced highest no. of cases is US. 10110552 cases on 9th Nov 2020
+#CONCLUSION: The country that experienced highest no. of cases is US. 19,968,087 cases on 31st Dec 2020
 ```
 ```{r}
 #Top six countries 
-top_six <- tail(group_countries[order(group_countries$`11/9/20`),]) 
+top_six <- tail(group_countries[order(group_countries$`12/31/20`),]) 
 
-#top_six
+top_six
 
-#top_six_table <- top_six %>%
-#    select(`Country/Region`,`11/9/20`) 
-#top_six_table
+top_six_table <- top_six %>%
+    select(`Country/Region`,`12/31/20`) 
+top_six_table$`12/31/20` <- prettyNum(top_six_table$`12/31/20`, big.mark = ",")
+top_six_table
 
 
 top_six_transposed <- top_six %>%
@@ -172,81 +175,81 @@ top_six_transposed <- top_six_transposed %>%
   group_by(Month) %>%
   summarise_each (funs(sum))
 
+#Round numbers to millions
 
-top_six_transposed <- top_six_transposed[-c(11), ]
-
-top_six_transposed$Spain <- top_six_transposed$Spain/1000000 
-top_six_transposed$Russia <- top_six_transposed$Russia/1000000 
-top_six_transposed$France <- top_six_transposed$France/1000000 
-top_six_transposed$Brazil <- top_six_transposed$Brazil/1000000 
-top_six_transposed$India <- top_six_transposed$India/1000000 
-top_six_transposed$US <- top_six_transposed$US/1000000 
-
+top_six_transposed[ ,2:7] <- round(top_six_transposed[ ,2:7]/1e6, digits=3)
 top_six_transposed
 
-df <- gather(top_six_transposed, key = 'Country', value = 'value', c("Spain", "Russia", "France", "Brazil", "India", "US"))
+df <- gather(top_six_transposed, key = 'Country', value = 'value', c("United Kingdom", "France", "Russia", "Brazil", "India", "US"))
+df
 
-top_six_trend <- ggplot(df, aes(x=Month, y = value)) + geom_line(aes(color=Country, linetype=Country)) + labs(title='Confirmed cases in top six countries', y='Millions of cases')+ scale_x_discrete(limit = c('Jan', 'Feb', 'March', 'April', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct')) + scale_x_discrete(limit = c('Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct')) + theme_light() + theme(text = element_text(size=10), axis.title.x=element_blank()) 
+top_six_trend <- ggplot(df, aes(x=Month, y = value)) + geom_line(aes(color=Country, linetype=Country)) + labs(title='Confirmed cases in top six countries', y='Millions of cases') + scale_x_discrete(limit = c('Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec')) + theme_bw() + theme(text = element_text(size=10), axis.title.x=element_blank()) 
 
 top_six_trend
-ggsave('top_six_trend.png')
+ggsave('updated_top_six_trend.png')
 ```
 ```{r}
 #RECOVERED & DEATHS
-recovered <- read_csv('time_series_covid19_recovered_global.csv')
+recovered <- read.csv('updated_time_series_covid19_recovered_global.csv', check.names = FALSE)
+recovered <- recovered[1:(length(recovered)-3)]
+recovered <- recovered %>%
+  group_by(`Country/Region`) %>%
+  summarise_at(vars(-`Province/State`), sum)
 head(recovered)
-deaths <- read_csv('time_series_covid19_deaths_global.csv')
+
+deaths <- read.csv('updated_time_series_covid19_deaths_global.csv', check.names = FALSE)
+deaths <- deaths[1:(length(deaths)-3)]
+deaths <- deaths %>%
+  group_by(`Country/Region`) %>%
+  summarise_at(vars(-`Province/State`), sum)
+
+deaths$Lat[is.na(deaths$Lat)] <- 56.130400
 head(deaths)
-      
-```
-```{r}
-#Dropping the 2 last cols (11/10/20 & 11/11/20) to keep the dates consistent
-recovered <- recovered %>% select (-`11/10/20`, -`11/11/20`)
-deaths <- deaths %>% select(-`11/10/20`, -`11/11/20`)
-
-head(deaths)
-
-
 ```
 
 
 ```{r}
-#Total cases recovered by 9th Nov
+#Total cases recovered by 31st Dec
 sum_recovered <- recovered %>%
-    summarise(sum(`11/9/20`))
+    summarise(sum(`12/31/20`))
 sum_recovered
-sum_recovered_percent <- sum_recovered*100/total_case
+sum_recovered_percent <- round(sum_recovered*100/total_case, digits = 2)
 sum_recovered_percent
+```
 
+
+```{r}
 #Northern countries (Lat >0)
 north_recovered <- recovered %>%
-    filter(Lat>0) %>%
-    summarise(sum(`11/9/20`))
+    filter(Lat>=0) %>%
+    summarise(sum(`12/31/20`))
+north_recovered
 north_recovered_percent <- north_recovered*100/north_equator
 north_recovered_percent
 
 #Southern countries (Lat<0)
 south_recovered <- recovered %>%
     filter(Lat<0) %>%
-    summarise(sum(`11/9/20`))
+    summarise(sum(`12/31/20`))
+south_recovered
 south_recovered_percent <- south_recovered*100/ south_equator
 south_recovered_percent
 
-#Total deaths by 9th Nov
+#Total deaths by 31st Dec
 sum_deaths <- deaths %>%
-    summarise(sum(`11/9/20`))
+    summarise(sum(`12/31/20`))
 sum_deaths
 
 north_deaths <- deaths %>%
     filter(Lat>0) %>%
-    summarise(sum(`11/9/20`))
+    summarise(sum(`12/31/20`))
 north_deaths
 north_deaths_percent <- north_deaths*100/north_equator
 north_deaths_percent
 
 south_deaths <- deaths %>%
     filter(Lat<0) %>%
-    summarise(sum(`11/9/20`))
+    summarise(sum(`12/31/20`))
 south_deaths
 south_deaths_percent <- south_deaths*100/ south_equator
 south_deaths_percent
@@ -266,12 +269,13 @@ north_treatment
 
 #comparison North and South table
 regions <- c('Northern countries', 'Southern countries')
-confirmed <- c(40720033, 10192684)
-deaths <- c(955048, 308243)
-on_treatment <- c(15634207, 726474)
-recovered <- c(24130778, 9157967)
+confirmed <- prettyNum(c(69847057, 13577389), big.mark=",")
+deaths <- prettyNum(c(1443582, 374519), big.mark=",")
+on_treatment <- prettyNum(c(33367866, 1228430), big.mark=",")
+recovered <- prettyNum(c(35035609, 11974440), big.mark=",")
 
-north_south_summary <- data.frame(regions, confirmed, deaths, on_treatment, recovered)
+north_south_summary <- data.frame(regions, confirmed, deaths, on_treatment, recovered) %>%
+  rename(Regions = regions, `Cases confirmed` = confirmed, Deaths = deaths, `On treatment` = on_treatment, `Cases recovered` = recovered)
 north_south_summary
 ```
 
@@ -279,22 +283,24 @@ north_south_summary
 ```{r}
 #Chart for 2 areas:
 status <- c('Recovered', 'Dead', 'On treatment')
-northern_countries <- c(24130778, 955048, 15634207)
-southern_countries <- c(9157967, 308243, 726474)
-north_and_south <- data.frame(status, northern_countries, southern_countries)
-
+northern_countries <- c(35035609, 1443582, 33367866)
+#northern_countries <- paste(format(round(c(35035609, 1443582, 33367866)/ 1e6, 2), trim = TRUE))
+southern_countries <- c(11974440, 374519, 1228430)
+#southern_countries <- paste(format(round(c(11974440, 374519, 1228430)/ 1e6, 2), trim = TRUE))
+north_and_south <- data.frame(status, northern_countries, southern_countries)%>%
+  rename("Northern countries" = northern_countries, "Southern countries" = southern_countries)
 north_and_south
 
 df <- pivot_longer(north_and_south, cols=-1)
 df
 
-percent_chart <- ggplot(df, aes(x=name, y=value, fill=status)) + geom_bar(position="fill", stat="identity") + scale_y_continuous(labels = scales::percent) + scale_fill_brewer() + theme_light() + theme(axis.title=element_blank())
+percent_chart <- ggplot(df, aes(x=name, y=value, fill=status)) + geom_bar(position="fill", stat="identity") + scale_y_continuous(labels=scales::percent) + scale_fill_brewer() + theme_light() + theme(axis.title=element_blank())
 percent_chart
-ggsave('north_south_percent_chart.png')
+ggsave('north_south_percent_chart.jpeg')
 
-north_and_south_chart <- ggplot(df, aes(x=name, y=value, fill=status)) + geom_bar(position="stack", stat="identity") + ylab('Number of cases') + scale_fill_brewer() + theme_classic() +  theme(axis.title.x=element_blank())
+north_and_south_chart <- ggplot(df, aes(x=name, y=value, fill=status)) + geom_bar(position="stack", stat="identity") + ylab('Number of cases') + scale_fill_brewer() + theme_classic() +  theme(axis.title.x=element_blank()) + scale_y_continuous(labels = unit_format(unit = "M", scale = 1e-6)) 
 north_and_south_chart 
-ggsave('north_and_south_chart.png')
+ggsave('north_and_south_chart.jpeg')
 
 ```
 
@@ -320,10 +326,8 @@ us_confirmed_case_by_month$million_cases <- us_confirmed_case_by_month$value/100
 colnames(us_confirmed_case_by_month)[1] <- 'month'
 us_confirmed_case_by_month
 
-#Since Nov data is not fully updated, data of Nov will be removed from the bar plot!
-us_confirmed_case_by_month <- us_confirmed_case_by_month[-c(11), ]
 
-us_confirmed_chart <- ggplot(us_confirmed_case_by_month, aes(x=month, y=million_cases)) + geom_bar(stat='identity', fill='steelblue') + labs(title='US cases from Jan to Oct 2020') + ylab(label='Millions of cases') + scale_x_discrete(limit = c('Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct')) + theme_minimal() + theme(text = element_text(size=10), axis.title.x=element_blank()) 
+us_confirmed_chart <- ggplot(us_confirmed_case_by_month, aes(x=month, y=million_cases)) + geom_bar(stat='identity', fill='steelblue') + geom_line(color="darkgreen") + labs(title='US cases in 2020') + ylab(label='Millions of cases') + scale_x_discrete(limit = c('Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec')) + theme_minimal() + theme(text = element_text(size=10), axis.title.x=element_blank()) 
 
 us_confirmed_chart
 ggsave('us_confirmed_cases.png')
